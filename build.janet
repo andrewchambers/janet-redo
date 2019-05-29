@@ -36,10 +36,8 @@
         (link objs out-path))
     (error "unknown build target")))
 
-(trace redo/build)
 (trace redo/redo)
 (trace redo/redo-if-change)
-(trace redo/changed?)
 (trace shell)
 
 (redo/build builder "prog")
