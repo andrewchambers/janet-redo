@@ -43,4 +43,5 @@
 (trace shell)
 
 (redo/build builder "prog")
-
+(print "build-db:")
+(pp redo/build-db)

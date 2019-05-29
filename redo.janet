@@ -21,18 +21,6 @@
   [target]
   @{:path target :if-change-deps []})
 
-(defn update-db-ent
-  [target]
-  (var db-ent (build-db target))
-  (when (not db-ent)
-    (error (string "internal error: no db-ent, target=" target)))
-  (def stat (os/stat target))
-  (when (not stat)
-    (error (string "unable to stat file: " target)))
-  (put db-ent :modified (stat :modified))
-  (put db-ent :size (stat :size))
-  (put db-ent :path target))
-
 (defn tmp-name
   [f]
   (string f ".redo.tmp"))
@@ -47,7 +35,6 @@
   (rm-if-exists tmp-file)
   (builder target tmp-file)
   (rename tmp-file target)
-  (update-db-ent target)
   (put db-ent :if-change-deps (curbuild :if-change-deps))
   (array/pop build-stack))
 
@@ -72,9 +59,7 @@
   (each target targets
     (def db-ent (build-db target))
     (if (and (os/stat target) (not db-ent))
-      (do
-        (put build-db target (new-db-ent target))
-        (update-db-ent target))
+      (put build-db target (new-db-ent target))
       (do 
         (if (or (not db-ent)
                 (find changed? (db-ent :if-change-deps))
