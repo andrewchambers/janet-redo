@@ -8,24 +8,39 @@
 (def objs (map (partial change-ext "o") csrc))
 (def hdrs ["all.h"])
 
+(defn shell
+  [cmd]
+  (when (not= (os/shell cmd) 0)
+    (error (string "'" cmd "' was not successful!"))))
+
+(defn cc
+  [cfile obj]
+  (shell (string "cc -c -o " obj " " cfile)))
+
+(defn link
+  [objs bin]
+  (shell (string "cc -o " bin " " (string/join objs " "))))
+
 (defn builder
   [target out-path]
-  (print "building: " target)
+  (redo/redo-if-change "build.janet")
   (cond
     (string/has-suffix? ".o" target)
       (do
         (def cfile (change-ext "c" target))
-        (os/shell (string "set -x ; cc -c -o " out-path " " cfile))
-        # Deps can come after build. Great for accurate dependecy information.
-        (redo/redo-if-change cfile ;hdrs))
+        (redo/redo-if-change cfile ;hdrs)
+        (cc cfile out-path))
     (= target "prog")
       (do
         (redo/redo-if-change ;objs)
-        (os/shell (string "set -x ; cc -o " out-path " " (string/join objs " "))))
+        (link objs out-path))
     (error "unknown build target")))
 
 (trace redo/build)
 (trace redo/redo)
 (trace redo/redo-if-change)
+(trace redo/changed?)
+(trace shell)
 
 (redo/build builder "prog")
+

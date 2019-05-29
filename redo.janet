@@ -39,8 +39,6 @@
 
 (defn redo
   [target]
-  (for i 0 (length build-stack) (file/write stdout "  "))
-  (print target)
   (def curbuild @{:target target :if-change-deps @[]})
   (array/push build-stack curbuild)
   (var db-ent (or (build-db target) (new-db-ent target)))
@@ -53,32 +51,37 @@
   (put db-ent :if-change-deps (curbuild :if-change-deps))
   (array/pop build-stack))
 
+(defn read-file-idents
+  [path]
+  (def stat (os/stat path))
+  (if stat
+    { :path path
+      :modified (stat :modified)
+      :size     (stat :size)}
+    (error (string path " missing."))))
+
 (defn changed?
   [dep]
-  (def db-ent (build-db dep))
-  (def stat (os/stat dep))
-  (or
-    (not db-ent)
-    (not stat)
-    (not= (stat :modified) (db-ent :modified))
-    (not= (stat :size) (db-ent :size))))
+  (def stat (os/stat (dep :path)))
+  (or (not stat)
+      (not= (read-file-idents (dep :path)) dep)))
 
 (defn redo-if-change 
   [& targets]
   (var parent (array/peek build-stack))
   (each target targets
-    (array/push (parent :if-change-deps) target)
     (def db-ent (build-db target))
     (if (and (os/stat target) (not db-ent))
       (do
         (put build-db target (new-db-ent target))
         (update-db-ent target))
       (do 
-        (var if-change-deps (when db-ent (db-ent :if-change-deps)))
-        (when (or (not if-change-deps)
-                  (find changed? if-change-deps)
-                  (exists? (tmp-name target)))
-          (redo target))))))
+        (if (or (not db-ent)
+                (find changed? (db-ent :if-change-deps))
+                (exists? (tmp-name target))
+                (not (exists? target)))
+          (redo target))))
+    (array/push (parent :if-change-deps) (read-file-idents target))))
 
 (var dbfile "./jredo.db")
 
