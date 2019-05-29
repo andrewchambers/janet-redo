@@ -91,4 +91,5 @@
       (set build-db @{})))
   (redo target)
   (spit (tmp-name dbfile) (marshal build-db))
-  (rename (tmp-name dbfile) dbfile))
+  (rename (tmp-name dbfile) dbfile)
+  (os/shell "sync"))
