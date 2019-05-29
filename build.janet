@@ -29,11 +29,3 @@
 (trace redo/redo-if-change)
 
 (redo/build builder "prog")
-(print "-------")
-(os/touch "b.c")
-(redo/build builder "prog")
-(print "-------")
-(os/touch "all.h")
-(redo/build builder "prog")
-(print "-------")
-(redo/build builder "prog")

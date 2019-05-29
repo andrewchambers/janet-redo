@@ -80,9 +80,15 @@
                   (exists? (tmp-name target)))
           (redo target))))))
 
+(var dbfile "./jredo.db")
+
 (defn build
   [bldr target]
   (set builder bldr)
   (when (nil? build-db)
-    (set build-db @{}))
-  (redo target))
+    (if (exists? dbfile)
+      (set build-db (unmarshal (slurp dbfile)))
+      (set build-db @{})))
+  (redo target)
+  (spit (tmp-name dbfile) (marshal build-db))
+  (rename (tmp-name dbfile) dbfile))
