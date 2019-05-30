@@ -2,6 +2,9 @@
 (var build-db nil)
 (var build-stack @[])
 (var builder nil)
+(var dbfile "./jredo.db")
+
+
 
 (defn exists?
   [f]
@@ -12,61 +15,64 @@
   (when (not= (os/shell (string "mv " src " " dest)) 0)
     (error "rename failed.")))
 
-(defn new-db-ent
+(defn make-build
   [target]
-  @{:path target :if-change-deps []})
+  @{:path target :if-change-deps @[] :state nil})
 
 (defn tmp-name
   [f]
   (string f ".redo.tmp"))
 
+(defn read-file-state
+  [path]
+  (def stat (os/stat path))
+  (if stat
+    { :modified (stat :modified)
+      :size     (stat :size)}
+    (error (string path " missing."))))
+
+(defn refresh-state
+  [target]
+  (def db-ent (build-db target))
+  (put db-ent :state (read-file-state target))
+  (each dep (db-ent :if-change-deps)
+    (refresh-state dep)))
+
 (defn redo
   [target]
-  (def curbuild @{:target target :if-change-deps @[]})
+  (def curbuild (make-build target))
   (array/push build-stack curbuild)
-  (var db-ent (or (build-db target) (new-db-ent target)))
-  (put build-db target db-ent)
   (def tmp-file (tmp-name target))
   (when (exists? tmp-file)
     (os/rm tmp-file))
   (builder target tmp-file)
   (rename tmp-file target)
-  (put db-ent :if-change-deps (curbuild :if-change-deps))
+  (put build-db target curbuild)
   (array/pop build-stack))
 
-(defn read-file-idents
-  [path]
-  (def stat (os/stat path))
-  (if stat
-    { :path path
-      :modified (stat :modified)
-      :size     (stat :size)}
-    (error (string path " missing."))))
-
 (defn changed?
-  [dep]
-  (def stat (os/stat (dep :path)))
+  [target]
+  (def stat (os/stat target))
+  (def db-ent (build-db target))
   (or (not stat)
-      (not= (read-file-idents (dep :path)) dep)))
+      (not db-ent)
+      (not= (read-file-state target) (db-ent :state))
+      (find changed? (db-ent :if-change-deps))))
 
 (defn redo-if-change 
   [& targets]
   (each target targets
     (def db-ent (build-db target))
     (if (and (os/stat target) (not db-ent))
-      (put build-db target (new-db-ent target))
-      (do 
-        (if (or (not db-ent)
-                (find changed? (db-ent :if-change-deps))
+      (do
+        (def build (make-build target))
+        (put build-db target build))
+      (when (or (not db-ent)
+                (not (exists? target))
                 (exists? (tmp-name target))
-                (not (exists? target)))
-          (redo target))))
-    (def file-idents (read-file-idents target))
-    (each parent build-stack
-      (when (not (find (fn [dep] (= target (dep :path))) (parent :if-change-deps)))
-        (array/push (parent :if-change-deps) file-idents)))))
-
-(var dbfile "./jredo.db")
+                (find changed? (db-ent :if-change-deps)))
+        (redo target))))
+  (array/concat ((array/peek build-stack) :if-change-deps) targets))
 
 (defn build
   [bldr target]
@@ -76,6 +82,7 @@
       (set build-db (unmarshal (slurp dbfile)))
       (set build-db @{})))
   (redo target)
+  (refresh-state target)
   (spit (tmp-name dbfile) (marshal build-db))
   (rename (tmp-name dbfile) dbfile)
   (os/shell "sync"))

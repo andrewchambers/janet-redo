@@ -44,10 +44,12 @@
       (do
         (redo/redo-if-change ;objs)
         (link objs out-path))
-    (error "unknown build target")))
+    (error (string "unknown build target: " target))))
+
 
 (trace redo/redo)
 (trace redo/redo-if-change)
+(trace redo/changed?)
 (trace shell)
 
 (redo/build builder (or (process/args 2) "prog"))
