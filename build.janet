@@ -47,7 +47,7 @@
 (trace redo/redo-if-change)
 (trace shell)
 
-(redo/build builder "prog")
+(redo/build builder (or (process/args 2) "prog"))
 (print "build-db:")
 
 (setdyn :pretty-format "%.80p")
