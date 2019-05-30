@@ -9,11 +9,6 @@
   [f]
   (not (nil? (os/stat f))))
 
-(defn rename
-  [src dest]
-  (when (not= (os/shell (string "mv " src " " dest)) 0)
-    (error "rename failed.")))
-
 (defn make-build
   [target]
   @{:path target :if-change-deps @[] :state nil})
@@ -48,7 +43,7 @@
   (when (exists? tmp-file)
     (os/rm tmp-file))
   (builder target tmp-file)
-  (rename tmp-file target)
+  (os/rename tmp-file target)
   (put build-db target curbuild)
   (array/pop build-stack))
 
@@ -92,6 +87,5 @@
   (redo target)
   (refresh-state target)
   (spit (tmp-name dbfile) (marshal build-db))
-  (rename (tmp-name dbfile) dbfile)
-  (os/shell "sync"))
+  (os/rename (tmp-name dbfile) dbfile))
 
