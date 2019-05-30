@@ -1,10 +1,9 @@
 
+(var changed-cache nil)
 (var build-db nil)
 (var build-stack @[])
 (var builder nil)
 (var dbfile "./jredo.db")
-
-
 
 (defn exists?
   [f]
@@ -32,11 +31,14 @@
     (error (string path " missing."))))
 
 (defn refresh-state
-  [target]
-  (def db-ent (build-db target))
-  (put db-ent :state (read-file-state target))
-  (each dep (db-ent :if-change-deps)
-    (refresh-state dep)))
+  [target &opt refreshed-set]
+  (default refreshed-set @{})
+  (when (not (refreshed-set target))
+    (put refreshed-set target true)
+    (def db-ent (build-db target))
+    (put db-ent :state (read-file-state target))
+    (each dep (db-ent :if-change-deps)
+      (refresh-state dep refreshed-set))))
 
 (defn redo
   [target]
@@ -52,12 +54,17 @@
 
 (defn changed?
   [target]
+  (when (not (nil? (changed-cache target)))
+    (break (changed-cache target)))
   (def stat (os/stat target))
   (def db-ent (build-db target))
-  (or (not stat)
-      (not db-ent)
-      (not= (read-file-state target) (db-ent :state))
-      (find changed? (db-ent :if-change-deps))))
+  (def changed 
+    (or (not stat)
+        (not db-ent)
+        (not= (read-file-state target) (db-ent :state))
+        (find changed? (db-ent :if-change-deps))))
+  (put changed-cache target changed)
+  changed)
 
 (defn redo-if-change 
   [& targets]
@@ -76,6 +83,7 @@
 
 (defn build
   [bldr target]
+  (set changed-cache @{})
   (set builder bldr)
   (when (nil? build-db)
     (if (exists? dbfile)

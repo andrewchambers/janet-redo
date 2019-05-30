@@ -49,7 +49,8 @@
 
 (trace redo/redo)
 (trace redo/redo-if-change)
-(trace redo/changed?)
+#(trace redo/changed?)
+#(trace redo/read-file-state)
 (trace shell)
 
 (redo/build builder (or (process/args 2) "prog"))
