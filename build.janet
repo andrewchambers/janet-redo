@@ -9,17 +9,18 @@
 (def hdrs ["all.h"])
 
 (defn shell
-  [cmd]
-  (when (not= (os/shell cmd) 0)
-    (error (string "'" cmd "' was not successful!"))))
+  [& cmds]
+  (def scmd (string ;cmds))
+  (when (not= (os/shell scmd) 0)
+    (error (string "'" scmd "' was not successful!"))))
 
 (defn cc
   [cfile obj]
-  (shell (string "cc -c -o " obj " " cfile)))
+  (shell "cc -c -o " obj " " cfile))
 
 (defn link
   [objs bin]
-  (shell (string "cc -o " bin " " (string/join objs " "))))
+  (shell "cc -o " bin " " (string/join objs " ")))
 
 (defn builder
   [target out-path]
@@ -28,8 +29,14 @@
     (string/has-suffix? ".o" target)
       (do
         (def cfile (change-ext "c" target))
+        (when (= "c.c" cfile)
+          (redo/redo-if-change "foo.dat"))
         (redo/redo-if-change cfile ;hdrs)
         (cc cfile out-path))
+    (= target "foo.dat")
+      (do
+        (redo/redo-if-change "foo.in")
+        (shell "cp foo.in " out-path))
     (= target "prog")
       (do
         (redo/redo-if-change ;objs)
@@ -42,4 +49,6 @@
 
 (redo/build builder "prog")
 (print "build-db:")
+
+(setdyn :pretty-format "%.80p")
 (pp redo/build-db)

@@ -55,7 +55,6 @@
 
 (defn redo-if-change 
   [& targets]
-  (var parent (array/peek build-stack))
   (each target targets
     (def db-ent (build-db target))
     (if (and (os/stat target) (not db-ent))
@@ -66,7 +65,10 @@
                 (exists? (tmp-name target))
                 (not (exists? target)))
           (redo target))))
-    (array/push (parent :if-change-deps) (read-file-idents target))))
+    (def file-idents (read-file-idents target))
+    (each parent build-stack
+      (when (not (find (fn [dep] (= target (dep :path))) (parent :if-change-deps)))
+        (array/push (parent :if-change-deps) file-idents)))))
 
 (var dbfile "./jredo.db")
 
