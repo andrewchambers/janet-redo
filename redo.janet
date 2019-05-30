@@ -1,4 +1,5 @@
 
+(var has-built-lut nil)
 (var changed-cache nil)
 (var build-db nil)
 (var build-stack @[])
@@ -37,6 +38,8 @@
 
 (defn redo
   [target]
+  (when (has-built-lut target)
+    (break))
   (def curbuild (make-build target))
   (array/push build-stack curbuild)
   (def tmp-file (tmp-name target))
@@ -45,7 +48,8 @@
   (builder target tmp-file)
   (os/rename tmp-file target)
   (put build-db target curbuild)
-  (array/pop build-stack))
+  (array/pop build-stack)
+  (put has-built-lut target true))
 
 (defn changed?
   [target]
@@ -79,6 +83,7 @@
 (defn build
   [bldr target]
   (set changed-cache @{})
+  (set has-built-lut @{})
   (set builder bldr)
   (when (nil? build-db)
     (if (exists? dbfile)
