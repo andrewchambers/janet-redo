@@ -12,11 +12,6 @@
   (when (not= (os/shell (string "mv " src " " dest)) 0)
     (error "rename failed.")))
 
-(defn rm-if-exists
-  [path]
-  (when (exists? path)
-    (os/rm path)))
-
 (defn new-db-ent
   [target]
   @{:path target :if-change-deps []})
@@ -32,7 +27,8 @@
   (var db-ent (or (build-db target) (new-db-ent target)))
   (put build-db target db-ent)
   (def tmp-file (tmp-name target))
-  (rm-if-exists tmp-file)
+  (when (exists? tmp-file)
+    (os/rm tmp-file))
   (builder target tmp-file)
   (rename tmp-file target)
   (put db-ent :if-change-deps (curbuild :if-change-deps))

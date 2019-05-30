@@ -24,7 +24,10 @@
 
 (defn builder
   [target out-path]
+
+  # everything depends on our build script.
   (redo/redo-if-change "build.janet")
+  
   (cond
     (string/has-suffix? ".o" target)
       (do
